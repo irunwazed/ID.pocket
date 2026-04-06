@@ -1,0 +1,10 @@
+---
+import Layout from '../layouts/Layout.astro';
+import TypeCrud from '../components/TypeCrud.svelte';
+---
+
+<Layout title="Kasku - Type Management">
+  <main class="min-h-screen p-8">
+    <TypeCrud client:load />
+  </main>
+</Layout>

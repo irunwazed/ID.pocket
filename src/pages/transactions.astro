@@ -1,0 +1,10 @@
+---
+import Layout from '../layouts/Layout.astro';
+import TransactionCrud from '../components/TransactionCrud.svelte';
+---
+
+<Layout title="Kasku - Transaction Management">
+  <main class="min-h-screen p-8">
+    <TransactionCrud client:load />
+  </main>
+</Layout>

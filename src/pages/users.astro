@@ -1,0 +1,10 @@
+---
+import Layout from '../layouts/Layout.astro';
+import UserCrud from '../components/UserCrud.svelte';
+---
+
+<Layout title="Kasku - User Management">
+  <main class="min-h-screen p-8">
+    <UserCrud client:load />
+  </main>
+</Layout>
