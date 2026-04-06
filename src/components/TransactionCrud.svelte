@@ -455,40 +455,38 @@
         <table class="w-full">
           <thead>
             <tr class="bg-slate-50/80 border-b border-slate-200">
-              <th class="px-2 sm:px-5 py-2 sm:py-3.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Period</th>
-              <th class="px-2 sm:px-5 py-2 sm:py-3.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Type</th>
-              <th class="px-2 sm:px-5 py-2 sm:py-3.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Note</th>
-              <th class="px-2 sm:px-5 py-2 sm:py-3.5 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Amount</th>
-              <th class="px-2 sm:px-5 py-2 sm:py-3.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">By</th>
-              <th class="px-2 sm:px-5 py-2 sm:py-3.5 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Actions</th>
+              <th class="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide w-10">No</th>
+              <th class="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Type</th>
+              <th class="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Amount</th>
+              <th class="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Note</th>
+              <th class="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Period</th>
+              <th class="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">By</th>
+              <th class="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Action</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
             {#each transactions as transaction, index (transaction.id)}
+              {@const rowIndex = (currentPage - 1) * pageSize + index + 1}
               <tr class="transition-all duration-150 {index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-violet-50/30 {loading ? 'opacity-50' : ''}">
-                <td class="px-2 sm:px-5 py-2 sm:py-4">
-                  <div class="flex flex-col gap-1">
-                    <span class="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700 w-fit">
-                      {transaction.year || '-'}/{String(transaction.month || 0).padStart(2, '0')}
-                    </span>
-                    <span class="text-xs text-slate-400">
-                      {formatDate(transaction.created_at)}
-                    </span>
-                  </div>
-                </td>
-                <td class="px-2 sm:px-5 py-2 sm:py-4 text-sm text-slate-600">{getTypeName(transaction.code_type)}</td>
-                <td class="px-2 sm:px-5 py-2 sm:py-4 text-sm text-slate-600 max-w-xs truncate" title={transaction.note}>{transaction.note || '-'}</td>
-                <td class="px-2 sm:px-5 py-2 sm:py-4 text-right">
-                  <span class="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-sm font-bold {getAmountBg(transaction.code_type)} {getAmountColor(transaction.code_type)}">
+                <td class="px-2 sm:px-3 py-2 sm:py-3 text-sm text-slate-500 font-mono text-xs">{rowIndex}</td>
+                <td class="px-2 sm:px-3 py-2 sm:py-3 text-sm text-slate-600">{getTypeName(transaction.code_type)}</td>
+                <td class="px-2 sm:px-3 py-2 sm:py-3 text-right">
+                  <span class="inline-flex items-center px-2 py-1 sm:px-2 sm:py-1 rounded-lg text-sm font-bold {getAmountBg(transaction.code_type)} {getAmountColor(transaction.code_type)}">
                     {formatMoney(transaction.money)}
                   </span>
                 </td>
-                <td class="px-2 sm:px-5 py-2 sm:py-4 text-sm text-slate-600">{transaction.created_by || '-'}</td>
-                <td class="px-2 sm:px-5 py-2 sm:py-4 text-right">
+                <td class="px-2 sm:px-3 py-2 sm:py-3 text-sm text-slate-600 max-w-xs truncate" title={transaction.note}>{transaction.note || '-'}</td>
+                <td class="px-2 sm:px-3 py-2 sm:py-3">
+                  <span class="inline-flex items-center px-2 py-0.5 sm:px-2 sm:py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 w-fit">
+                    {transaction.year || '-'}/{String(transaction.month || 0).padStart(2, '0')}
+                  </span>
+                </td>
+                <td class="px-2 sm:px-3 py-2 sm:py-3 text-sm text-slate-500">{transaction.created_by || '-'}</td>
+                <td class="px-2 sm:px-3 py-2 sm:py-3 text-right">
                   <div class="flex items-center justify-end gap-1">
                     <button
                       on:click={() => openEditForm(transaction)}
-                      class="p-2 text-slate-500 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all duration-150"
+                      class="p-1.5 sm:p-2 text-slate-500 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all duration-150"
                       title="Edit"
                       disabled={loading}
                     >
@@ -498,7 +496,7 @@
                     </button>
                     <button
                       on:click={() => deleteTransaction(transaction.id)}
-                      class="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all duration-150"
+                      class="p-1.5 sm:p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all duration-150"
                       title="Delete"
                       disabled={loading}
                     >
