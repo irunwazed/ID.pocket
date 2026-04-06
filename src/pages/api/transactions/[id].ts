@@ -1,17 +1,32 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServer } from '../../../lib/supabaseServer';
+import { getAuthUser } from '../../../lib/auth';
 
 export const prerender = false;
 
 export const PUT: APIRoute = async ({ request, params }) => {
   try {
+    // Get authenticated user from Bearer token or cookie
+    const authUser = getAuthUser(request);
+
+    if (!authUser) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const supabase = createSupabaseServer();
     const body = await request.json();
     const { id } = params;
 
     const { data, error } = await supabase
       .from('transaction')
-      .update({ ...body, updated_at: new Date().toISOString() })
+      .update({
+        ...body,
+        updated_at: new Date().toISOString(),
+        updated_by: authUser.username
+      })
       .eq('id', id)
       .select()
       .single();
@@ -35,14 +50,27 @@ export const PUT: APIRoute = async ({ request, params }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ params }) => {
+export const DELETE: APIRoute = async ({ request, params }) => {
   try {
+    // Get authenticated user from Bearer token or cookie
+    const authUser = getAuthUser(request);
+
+    if (!authUser) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const supabase = createSupabaseServer();
     const { id } = params;
 
     const { error } = await supabase
       .from('transaction')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: authUser.username
+      })
       .eq('id', id);
 
     if (error) {

@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import bcrypt from 'bcryptjs';
 import { createSupabaseServer } from '../../../lib/supabaseServer';
 
 export const GET: APIRoute = async () => {
@@ -7,7 +8,7 @@ export const GET: APIRoute = async () => {
 
     const { data, error } = await supabase
       .from('user')
-      .select('*')
+      .select('id, created_at, name, username, level')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -34,10 +35,25 @@ export const POST: APIRoute = async ({ request }) => {
     const supabase = createSupabaseServer();
     const body = await request.json();
 
+    if (!body.password) {
+      return new Response(JSON.stringify({ error: 'Password wajib diisi' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(body.password, 10);
+
     const { data, error } = await supabase
       .from('user')
-      .insert(body)
-      .select()
+      .insert({
+        name: body.name,
+        username: body.username,
+        password: hashedPassword,
+        level: body.level
+      })
+      .select('id, created_at, name, username, level')
       .single();
 
     if (error) {

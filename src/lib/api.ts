@@ -2,13 +2,39 @@ import type { User, Transaction, Type, TransactionStats } from './types';
 
 const API_BASE = '/api';
 
+// Helper function to get auth token from cookie
+function getAuthToken(): string | null {
+  const cookies = document.cookie.split(';').map(c => c.trim());
+  const authCookie = cookies.find(c => c.startsWith('auth_token='));
+  return authCookie ? authCookie.split('=')[1] : null;
+}
+
+// Helper function to get current user from localStorage
+function getCurrentUser(): { username: string; name: string } | null {
+  const userStr = localStorage.getItem('user');
+  return userStr ? JSON.parse(userStr) : null;
+}
+
 // Helper function for API calls
 async function fetchAPI(url: string, options?: RequestInit) {
+  const token = getAuthToken();
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json'
+  };
+
+  // Add additional headers from options
+  if (options?.headers) {
+    Object.assign(headers, options.headers);
+  }
+
+  // Add Bearer token if available
+  if (token) {
+    (headers as any)['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers
-    },
+    headers,
     ...options
   });
 
@@ -100,11 +126,14 @@ export const transactionApi = {
     note?: string;
     code_type?: string;
     money?: number;
-    created_by?: string;
   }): Promise<Transaction> {
+    const currentUser = getCurrentUser();
     return fetchAPI(`${API_BASE}/transactions`, {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify({
+        ...data,
+        created_by: currentUser?.username
+      })
     });
   },
 
@@ -114,11 +143,14 @@ export const transactionApi = {
     note?: string;
     code_type?: string;
     money?: number;
-    updated_by?: string;
   }): Promise<Transaction> {
+    const currentUser = getCurrentUser();
     return fetchAPI(`${API_BASE}/transactions/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data)
+      body: JSON.stringify({
+        ...data,
+        updated_by: currentUser?.username
+      })
     });
   },
 

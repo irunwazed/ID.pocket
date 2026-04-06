@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServer } from '../../../lib/supabaseServer';
+import { getAuthUser } from '../../../lib/auth';
 
 export const GET: APIRoute = async ({ url }) => {
   try {
@@ -105,32 +106,76 @@ export const GET: APIRoute = async ({ url }) => {
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const supabase = createSupabaseServer();
-    const body = await request.json();
+    // Get authenticated user from Bearer token or cookie
+    const authUser = getAuthUser(request);
 
-    // Add created_at if not provided
-    const transactionData = {
-      ...body,
-      created_at: body.created_at || new Date().toISOString()
-    };
-
-    const { data, error } = await supabase
-      .from('transaction')
-      .insert(transactionData)
-      .select()
-      .single();
-
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 400,
+    if (!authUser) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    return new Response(JSON.stringify(data), {
-      status: 201,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const supabase = createSupabaseServer();
+    const body = await request.json();
+
+    // Check if id is provided for update, otherwise create
+    if (body.id) {
+      // Update existing transaction
+      const { id, ...updateData } = body;
+      const timestamp = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('transaction')
+        .update({
+          ...updateData,
+          updated_at: timestamp,
+          updated_by: authUser.username
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } else {
+      // Create new transaction
+      const transactionData = {
+        ...body,
+        created_at: body.created_at || new Date().toISOString(),
+        created_by: authUser.username
+      };
+
+      // Remove id from create data if present
+      delete transactionData.id;
+
+      const { data, error } = await supabase
+        .from('transaction')
+        .insert(transactionData)
+        .select()
+        .single();
+
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      return new Response(JSON.stringify(data), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err?.message || 'Server error' }), {
       status: 500,

@@ -1,0 +1,10 @@
+---
+import AuthLayout from '../layouts/AuthLayout.astro';
+import LoginForm from '../components/LoginForm.svelte';
+---
+
+<AuthLayout title="ID Flow - Login">
+  <main class="min-h-screen">
+    <LoginForm client:load />
+  </main>
+</AuthLayout>
