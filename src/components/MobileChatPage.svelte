@@ -13,13 +13,17 @@
   let chatError: string | null = $state(null);
   let chatProvider = $state('opencode');
   let isRecording = $state(false);
+  let isTranscribing = $state(false);
+  let modelLoadProgress = $state<string | null>(null);
   let audioLevels = $state<number[]>(Array(14).fill(0));
   let chatContainerEl: HTMLDivElement | undefined = $state(undefined);
   let textareaEl = $state<HTMLTextAreaElement | null>(null);
-  let recognitionInstance: any = null;
   let mediaStream: MediaStream | null = null;
   let audioCtx: AudioContext | null = null;
   let animFrameId: number | null = null;
+  let mediaRecorder: MediaRecorder | null = null;
+  let recordedChunks: Blob[] = [];
+  let transcriber: any = null; // Whisper pipeline (lazy-loaded)
 
   // Config sidebar
   let showConfig = $state(false);
@@ -64,34 +68,6 @@
     audioCtx?.close().catch(() => {});
     audioCtx = null;
     audioLevels = Array(14).fill(0);
-  }
-
-  async function startViz() {
-    try {
-      const audioConstraint = selectedMicId && selectedMicId !== 'default'
-        ? { deviceId: { exact: selectedMicId } }
-        : true;
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraint });
-      audioCtx = new AudioContext();
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 64;
-      analyser.smoothingTimeConstant = 0.55;
-      audioCtx.createMediaStreamSource(mediaStream).connect(analyser);
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      const N = 14;
-      function tick() {
-        analyser.getByteFrequencyData(data);
-        audioLevels = Array.from({ length: N }, (_, i) => {
-          const s = Math.floor(i * data.length / N);
-          const e = Math.floor((i + 1) * data.length / N);
-          let sum = 0;
-          for (let j = s; j < e; j++) sum += data[j];
-          return (sum / (e - s)) / 255;
-        });
-        animFrameId = requestAnimationFrame(tick);
-      }
-      tick();
-    } catch { /* mic denied — waveform hidden, speech still runs */ }
   }
 
   function scrollToBottom() {
@@ -154,66 +130,148 @@
     }
   }
 
+  async function loadTranscriber() {
+    if (transcriber) return transcriber;
+    modelLoadProgress = 'Memuat model Whisper...';
+    try {
+      const { pipeline, env } = await import('@huggingface/transformers');
+      env.allowLocalModels = false; // always fetch from HF Hub
+      transcriber = await pipeline(
+        'automatic-speech-recognition',
+        'Xenova/whisper-tiny',
+        {
+          dtype: 'fp32',     // avoid int4/MatMulNBits incompatibility in onnxruntime-web
+          device: 'wasm',
+          progress_callback: (p: any) => {
+            if (p.status === 'progress' && p.progress != null) {
+              modelLoadProgress = `Download model: ${Math.round(p.progress)}%`;
+            } else if (p.status === 'ready' || p.status === 'done') {
+              modelLoadProgress = null;
+            }
+          },
+        } as any
+      );
+      modelLoadProgress = null;
+      return transcriber;
+    } catch (err: any) {
+      modelLoadProgress = null;
+      throw new Error(`Gagal load model: ${err?.message ?? err}`);
+    }
+  }
+
+  async function blobToFloat32(blob: Blob): Promise<Float32Array> {
+    const arrayBuffer = await blob.arrayBuffer();
+    // Whisper expects 16kHz mono Float32
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    let data: Float32Array;
+    if (audioBuffer.numberOfChannels === 1) {
+      data = audioBuffer.getChannelData(0).slice();
+    } else {
+      // mix down to mono
+      const left = audioBuffer.getChannelData(0);
+      const right = audioBuffer.getChannelData(1);
+      data = new Float32Array(left.length);
+      for (let i = 0; i < left.length; i++) data[i] = (left[i] + right[i]) / 2;
+    }
+    ctx.close().catch(() => {});
+    return data;
+  }
+
   async function toggleVoice() {
     if (isRecording) {
+      // stop recording → triggers onstop → transcribe
       isRecording = false;
-      recognitionInstance?.stop();
-      stopViz();
+      mediaRecorder?.stop();
       return;
     }
 
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { chatError = 'Voice input tidak didukung di browser ini'; return; }
+    if (isTranscribing) return;
+    chatError = null;
 
-    isRecording = true;
-    startViz();
-
-    const baseText = chatInput.trim();
-    let accumulated = ''; // final text across all utterances this session
-
-    function startUtterance() {
-      if (!isRecording) return;
-
-      const rec = new SR();
-      recognitionInstance = rec;
-      rec.lang = 'id-ID';
-      rec.interimResults = true;
-      rec.continuous = false; // single utterance — more reliable across browsers
-
-      let utteranceFinal = ''; // final from this utterance only
-
-      rec.onresult = (e: any) => {
-        let thisFinal = '';
-        let interim = '';
-        for (let i = 0; i < e.results.length; i++) {
-          if (e.results[i].isFinal) thisFinal += e.results[i][0].transcript;
-          else interim += e.results[i][0].transcript;
-        }
-        utteranceFinal = thisFinal;
-        const display = (accumulated + thisFinal + interim).trim();
-        chatInput = baseText ? `${baseText} ${display}` : display;
-      };
-
-      rec.onend = () => {
-        accumulated += utteranceFinal; // commit this utterance's finals
-        if (isRecording) {
-          setTimeout(startUtterance, 80); // restart for next utterance
-        } else {
-          stopViz();
-        }
-      };
-
-      rec.onerror = (e: any) => {
-        if (e.error === 'no-speech') return; // ignore silence, will restart via onend
-        chatError = `Gagal merekam: ${e.error}`;
-        isRecording = false;
-        stopViz();
-      };
-
-      try { rec.start(); } catch { isRecording = false; stopViz(); }
+    try {
+      const audioConstraint = selectedMicId && selectedMicId !== 'default'
+        ? { deviceId: { exact: selectedMicId } }
+        : true;
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraint });
+    } catch (err: any) {
+      chatError = `Tidak bisa akses mikrofon: ${err?.message ?? err}`;
+      return;
     }
 
-    startUtterance();
+    // start waveform from same stream
+    startVizFromStream(mediaStream);
+
+    recordedChunks = [];
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+    mediaRecorder = mime ? new MediaRecorder(mediaStream, { mimeType: mime }) : new MediaRecorder(mediaStream);
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      stopViz();
+      const blob = new Blob(recordedChunks, { type: mediaRecorder?.mimeType || 'audio/webm' });
+      recordedChunks = [];
+      if (blob.size < 500) {
+        chatError = 'Suara terlalu pendek';
+        return;
+      }
+
+      isTranscribing = true;
+      try {
+        const t = await loadTranscriber();
+        const audioData = await blobToFloat32(blob);
+        modelLoadProgress = 'Transkripsi...';
+        const result = await t(audioData, {
+          language: 'indonesian',
+          task: 'transcribe',
+          chunk_length_s: 30,
+          stride_length_s: 5,
+        });
+        const text = (result?.text ?? '').trim();
+        if (text) {
+          chatInput = chatInput.trim() ? `${chatInput.trim()} ${text}` : text;
+        } else {
+          chatError = 'Tidak ada teks terdeteksi';
+        }
+      } catch (err: any) {
+        chatError = err?.message ?? 'Transkripsi gagal';
+      } finally {
+        isTranscribing = false;
+        modelLoadProgress = null;
+      }
+    };
+
+    mediaRecorder.start();
+    isRecording = true;
+  }
+
+  function startVizFromStream(stream: MediaStream) {
+    try {
+      audioCtx = new AudioContext();
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.55;
+      audioCtx.createMediaStreamSource(stream).connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const N = 14;
+      function tick() {
+        analyser.getByteFrequencyData(data);
+        audioLevels = Array.from({ length: N }, (_, i) => {
+          const s = Math.floor(i * data.length / N);
+          const e = Math.floor((i + 1) * data.length / N);
+          let sum = 0;
+          for (let j = s; j < e; j++) sum += data[j];
+          return (sum / (e - s)) / 255;
+        });
+        animFrameId = requestAnimationFrame(tick);
+      }
+      tick();
+    } catch { /* ignore — waveform is decorative */ }
   }
 
   onMount(() => {
@@ -421,6 +479,13 @@
       <p class="text-xs text-red-500 mb-1.5 px-1">{chatError}</p>
     {/if}
 
+    {#if modelLoadProgress}
+      <p class="text-xs text-sky-500 mb-1.5 px-1 flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+        {modelLoadProgress}
+      </p>
+    {/if}
+
     <!-- Waveform visualizer -->
     {#if isRecording}
       <div class="flex items-end justify-center gap-0.75 mb-2 px-2" style="height: 36px;">
@@ -448,10 +513,16 @@
       ></textarea>
       <button
         onclick={toggleVoice}
-        aria-label={isRecording ? 'Stop rekam' : 'Rekam suara'}
-        class="w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-all {isRecording ? 'bg-red-500 text-white shadow-lg shadow-red-300/60' : 'bg-slate-100 text-slate-500 active:bg-slate-200'}"
+        disabled={isTranscribing}
+        aria-label={isRecording ? 'Stop rekam' : isTranscribing ? 'Memproses' : 'Rekam suara'}
+        class="w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-all disabled:opacity-60 {isRecording ? 'bg-red-500 text-white shadow-lg shadow-red-300/60' : isTranscribing ? 'bg-sky-100 text-sky-500' : 'bg-slate-100 text-slate-500 active:bg-slate-200'}"
       >
-        {#if isRecording}
+        {#if isTranscribing}
+          <!-- Spinner -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" d="M12 4a8 8 0 018 8" />
+          </svg>
+        {:else if isRecording}
           <!-- Stop icon -->
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
             <rect x="4" y="4" width="16" height="16" rx="2"/>
