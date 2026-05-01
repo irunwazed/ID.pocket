@@ -10,15 +10,7 @@ export default defineConfig({
   output: 'server',
   adapter: netlify(),
   vite: {
-    plugins: [tailwindcss()],
-    optimizeDeps: {
-      exclude: [
-        '@huggingface/transformers',
-        'onnxruntime-web',
-        'onnxruntime-node',
-        'sharp',
-      ]
-    }
+    plugins: [tailwindcss()]
   },
   integrations: [svelte()]
 });

@@ -30,7 +30,8 @@
       "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/packages/console-core/src/model.ts\")",
       "Bash(curl -s \"https://opencode.ai/zen/v1/models\" -H \"Authorization: Bearer test\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(m['id']\\) for m in d.get\\('data',[]\\)]\")",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)"
     ]
   }
 }

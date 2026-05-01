@@ -134,13 +134,15 @@
     if (transcriber) return transcriber;
     modelLoadProgress = 'Memuat model Whisper...';
     try {
-      const { pipeline, env } = await import(/* @vite-ignore */ '@huggingface/transformers');
-      env.allowLocalModels = false; // always fetch from HF Hub
+      // Load from CDN to avoid bundler/WASM issues at build time
+      const CDN = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
+      const { pipeline, env } = await import(/* @vite-ignore */ CDN) as any;
+      env.allowLocalModels = false;
       transcriber = await pipeline(
         'automatic-speech-recognition',
         'Xenova/whisper-tiny',
         {
-          dtype: 'fp32',     // avoid int4/MatMulNBits incompatibility in onnxruntime-web
+          dtype: 'fp32',
           device: 'wasm',
           progress_callback: (p: any) => {
             if (p.status === 'progress' && p.progress != null) {
@@ -149,7 +151,7 @@
               modelLoadProgress = null;
             }
           },
-        } as any
+        }
       );
       modelLoadProgress = null;
       return transcriber;
