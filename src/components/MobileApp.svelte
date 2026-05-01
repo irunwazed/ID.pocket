@@ -4,6 +4,7 @@
   import type { Transaction, TransactionStats, Type } from '../lib/types';
   import MobileNavbar from './MobileNavbar.svelte';
   import Modal from './Modal.svelte';
+  import { Briefcase, CircleDollarSign, Gift, Shirt, Sparkles, UtensilsCrossed, Cookie, ShoppingCart, Flame, House, Brush, Zap, Bike, Smartphone, Wrench, GraduationCap, FileText, Landmark, Gamepad2, Plane, HeartHandshake, Pill, Stethoscope, Hospital, Scale, Package, Tag } from 'lucide-svelte';
 
   let activeTab = $state('home');
   let currentUser: any = $state(null);
@@ -67,67 +68,38 @@
   // Month names
   const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-  // Type icon & color mapping
-  const typeConfig: Record<string, { color: string; bg: string }> = {
-    '401': { color: 'text-emerald-700', bg: 'bg-emerald-50' },
-    '402': { color: 'text-green-700', bg: 'bg-green-50' },
-    '403': { color: 'text-teal-700', bg: 'bg-teal-50' },
-    '50101': { color: 'text-pink-700', bg: 'bg-pink-50' },
-    '50102': { color: 'text-rose-700', bg: 'bg-rose-50' },
-    '50201': { color: 'text-orange-700', bg: 'bg-orange-50' },
-    '50202': { color: 'text-amber-700', bg: 'bg-amber-50' },
-    '50203': { color: 'text-yellow-700', bg: 'bg-yellow-50' },
-    '50204': { color: 'text-lime-700', bg: 'bg-lime-50' },
-    '50301': { color: 'text-blue-700', bg: 'bg-blue-50' },
-    '50302': { color: 'text-sky-700', bg: 'bg-sky-50' },
-    '50303': { color: 'text-cyan-700', bg: 'bg-cyan-50' },
-    '50304': { color: 'text-indigo-700', bg: 'bg-indigo-50' },
-    '50305': { color: 'text-violet-700', bg: 'bg-violet-50' },
-    '50309': { color: 'text-gray-700', bg: 'bg-gray-100' },
-    '50401': { color: 'text-purple-700', bg: 'bg-purple-50' },
-    '50501': { color: 'text-slate-700', bg: 'bg-slate-50' },
-    '50502': { color: 'text-red-700', bg: 'bg-red-50' },
-    '50601': { color: 'text-fuchsia-700', bg: 'bg-fuchsia-50' },
-    '50602': { color: 'text-sky-700', bg: 'bg-sky-50' },
-    '50701': { color: 'text-red-700', bg: 'bg-red-50' },
-    '50801': { color: 'text-emerald-700', bg: 'bg-emerald-50' },
-    '50802': { color: 'text-teal-700', bg: 'bg-teal-50' },
-    '50803': { color: 'text-cyan-700', bg: 'bg-cyan-50' },
-    '50901': { color: 'text-indigo-700', bg: 'bg-indigo-50' },
-    '50902': { color: 'text-gray-700', bg: 'bg-gray-100' },
+// Type icon & color mapping
+  const typeConfig: Record<string, { icon: any; color: string; bg: string }> = {
+    '401': { icon: Briefcase, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    '402': { icon: CircleDollarSign, color: 'text-green-700', bg: 'bg-green-50' },
+    '403': { icon: Gift, color: 'text-teal-700', bg: 'bg-teal-50' },
+    '50101': { icon: Shirt, color: 'text-pink-700', bg: 'bg-pink-50' },
+    '50102': { icon: Sparkles, color: 'text-rose-700', bg: 'bg-rose-50' },
+    '50201': { icon: UtensilsCrossed, color: 'text-orange-700', bg: 'bg-orange-50' },
+    '50202': { icon: Cookie, color: 'text-amber-700', bg: 'bg-amber-50' },
+    '50203': { icon: ShoppingCart, color: 'text-yellow-700', bg: 'bg-yellow-50' },
+    '50204': { icon: Flame, color: 'text-lime-700', bg: 'bg-lime-50' },
+    '50301': { icon: House, color: 'text-blue-700', bg: 'bg-blue-50' },
+    '50302': { icon: Brush, color: 'text-sky-700', bg: 'bg-sky-50' },
+    '50303': { icon: Zap, color: 'text-cyan-700', bg: 'bg-cyan-50' },
+    '50304': { icon: Bike, color: 'text-indigo-700', bg: 'bg-indigo-50' },
+    '50305': { icon: Smartphone, color: 'text-violet-700', bg: 'bg-violet-50' },
+    '50309': { icon: Wrench, color: 'text-gray-700', bg: 'bg-gray-100' },
+    '50401': { icon: GraduationCap, color: 'text-purple-700', bg: 'bg-purple-50' },
+    '50501': { icon: FileText, color: 'text-slate-700', bg: 'bg-slate-50' },
+    '50502': { icon: Landmark, color: 'text-red-700', bg: 'bg-red-50' },
+    '50601': { icon: Gamepad2, color: 'text-fuchsia-700', bg: 'bg-fuchsia-50' },
+    '50602': { icon: Plane, color: 'text-sky-700', bg: 'bg-sky-50' },
+    '50701': { icon: HeartHandshake, color: 'text-red-700', bg: 'bg-red-50' },
+    '50801': { icon: Pill, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    '50802': { icon: Stethoscope, color: 'text-teal-700', bg: 'bg-teal-50' },
+    '50803': { icon: Hospital, color: 'text-cyan-700', bg: 'bg-cyan-50' },
+    '50901': { icon: Scale, color: 'text-indigo-700', bg: 'bg-indigo-50' },
+    '50902': { icon: Package, color: 'text-gray-700', bg: 'bg-gray-100' },
   };
 
-  function getTypeIcon(code: string): string {
-    const svgs: Record<string, string> = {
-      '401': '<path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.09-.85 1.98-1.94 2.01a51.88 51.88 0 00-6.62 0c-1.09.03-1.94-.92-1.94-2.01v-4.25M20.25 14.15H3.75m16.5 0l-1.5-8.4a1.07 1.07 0 00-.87-.84 46.3 46.3 0 00-13.76 0 1.07 1.07 0 00-.87.84l-1.5 8.4M3.75 14.15h16.5"/>',
-      '402': '<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>',
-      '403': '<path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0v7.5m-8.625-3h17.25"/>',
-      '50101': '<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5-.092v.092a3.75 3.75 0 01-3.75 3.75h-.75a.75.75 0 00-.75.75v6c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75v-3.75a.75.75 0 01.75-.75h2.25v7.5a1.5 1.5 0 003 0v-7.5h2.25a.75.75 0 01.75.75v3.75a.75.75 0 00.75.75h1.5a.75.75 0 00.75-.75v-6a.75.75 0 00-.75-.75h-.75a3.75 3.75 0 01-3.75-3.75z"/>',
-      '50102': '<path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/>',
-      '50201': '<path stroke-linecap="round" stroke-linejoin="round" d="M12 8.25v-1.5m0 1.5a2.25 2.25 0 00-2.25 2.25c0 1.5-1.125 2.25-2.25 2.25S5.25 12 5.25 10.5A2.25 2.25 0 017.5 8.25H12zm0 0v7.5m4.5-4.5H12m4.5 0a2.25 2.25 0 002.25 2.25c1.125 0 2.25.75 2.25 2.25S19.875 18 18.75 18c-1.125 0-2.25-.75-4.5-2.25m5.25-4.5a2.25 2.25 0 00-2.25-2.25h-1.5"/>',
-      '50202': '<path stroke-linecap="round" stroke-linejoin="round" d="M12 8.25a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 11.25a3 3 0 11-6 0 3 3 0 016 0zM3.75 21h.75a.75.75 0 00.75-.75v-1.5a2.625 2.625 0 012.625-2.625h4.5a2.625 2.625 0 012.625 2.625v1.5a.75.75 0 00.75.75h.75a.75.75 0 00.75-.75v-1.5a4.125 4.125 0 00-4.125-4.125h-4.5A4.125 4.125 0 003 18.75v1.5c0 .414.336.75.75.75z"/>',
-      '50203': '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.1-6.75A2.25 2.25 0 0018.75 6h-1.5M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>',
-      '50204': '<path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z"/>',
-      '50301': '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/>',
-      '50302': '<path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zm8.446-7.189L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z"/>',
-      '50303': '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/>',
-      '50304': '<path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.435-.734l-.434-.064a1.5 1.5 0 00-1.57.926l-.286.713a1.5 1.5 0 01-1.4.926h-3.282a1.5 1.5 0 01-1.4-.926l-.286-.713a1.5 1.5 0 00-1.57-.926l-.434.064a2.056 2.056 0 00-1.435.734A17.902 17.902 0 003.375 17.626c-.04.62.469 1.124 1.09 1.124H5.25"/>',
-      '50305': '<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"/>',
-      '50309': '<path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.148a4.508 4.508 0 013.082 1.194c.878.878 1.766 2.1 1.12 3.586m-7.945-3.658l-.87-.87a2.127 2.127 0 013.005-3.005l.87.87"/>',
-      '50401': '<path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.636 50.636 0 00-2.658-.813A59.906 59.906 0 0112 3.493a59.903 59.903 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 19.5v-2.25m0 0a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v2.25m6-4.5a1.5 1.5 0 00-1.5-1.5H5.25a1.5 1.5 0 00-1.5 1.5v2.25"/>',
-      '50501': '<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>',
-      '50502': '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/>',
-      '50601': '<path stroke-linecap="round" stroke-linejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 01-.657.643 48.491 48.491 0 01-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 01-.65.66H6.3c-.35 0-.673-.186-.958-.401a1.938 1.938 0 00-1.002-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.37 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401h0c.38 0 .694.273.708.652a48.625 48.625 0 01-.327 4.563 48.492 48.492 0 014.163-.3.64.64 0 01.657.643v0c0 .355-.186.676-.401.959a1.938 1.938 0 00-.349 1.003c0 1.035 1.008 1.875 2.25 1.875 1.243 0 2.25-.84 2.25-1.875 0-.37-.128-.713-.349-1.003-.215-.283-.401-.604-.401-.959v0a.64.64 0 01.657-.643 48.5 48.5 0 014.163.3c-.186-1.613-.293-3.25-.315-4.907a.656.656 0 01.65-.66h.108c.35 0 .673.186.958.401.29.221.634.349 1.003.349 1.035 0 1.875-1.007 1.875-2.25s-.84-2.25-1.875-2.25a1.938 1.938 0 00-1.002.349c-.283.215-.604.401-.959.401h0a.656.656 0 01-.708-.652 48.625 48.625 0 01.327-4.563 48.492 48.492 0 01-4.163.3.64.64 0 01-.657-.643z"/>',
-      '50602': '<path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>',
-      '50701': '<path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/>',
-      '50801': '<path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/>',
-      '50802': '<path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/>',
-      '50803': '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21a1.125 1.125 0 01-1.125-1.125V18.75a3.375 3.375 0 013.375-3.375h1.5a1.125 1.125 0 011.125 1.125v3.75a1.125 1.125 0 01-1.125 1.125h-4.5zM15.75 21a1.125 1.125 0 01-1.125-1.125v-3.75a1.125 1.125 0 011.125-1.125h1.5a3.375 3.375 0 013.375 3.375v1.125a1.125 1.125 0 01-1.125 1.125h-4.5zM5.25 15.75V12a6.75 6.75 0 0113.5 0v3.75m-9 0h4.5"/>',
-      '50901': '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M12 20.25c-4.97 0-9-2.686-9-6v-.75m18 .75c0 3.314-4.03 6-9 6m0-6c-4.97 0-9-2.015-9-4.5S7.03 5.25 12 5.25s9 2.015 9 4.5-4.03 4.5-9 4.5z"/>',
-      '50902': '<path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/>',
-    };
-    const path = svgs[code] || '<path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/>';
-    return `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">${path}</svg>`;
+  function getTypeConfig(code: string) {
+    return typeConfig[code] || { icon: Tag, color: 'text-gray-700', bg: 'bg-gray-100' };
   }
 
   // Group definitions for home screen categories
@@ -141,9 +113,7 @@
     { label: 'Lainnya', codes: ['50309', '50401', '50501', '50502', '50601', '50602', '50701', '50801', '50802', '50803', '50901', '50902'] },
   ];
 
-  function getTypeConfig(code: string) {
-    return typeConfig[code] || { color: 'text-gray-700', bg: 'bg-gray-100' };
-  }
+  // State
 
   function openCreateFormWithType(codeType: string) {
     resetForm();
@@ -433,7 +403,7 @@
                   class="flex flex-col items-center gap-1.5 active:scale-90 transition-transform"
                 >
                   <div class="w-12 h-12 rounded-2xl {config.bg} flex items-center justify-center shadow-md ring-1 ring-white/80">
-                    <span class="{config.color} [&_svg]:h-6 [&_svg]:w-6">{@html getTypeIcon(code)}</span>
+                    <span class="{config.color}"><svelte:component this={config.icon} size={22} strokeWidth={1.5} /></span>
                   </div>
                   <span class="text-[10px] font-bold text-slate-700 leading-tight text-center line-clamp-2">{typeName}</span>
                 </button>
@@ -450,7 +420,7 @@
                   class="flex flex-col items-center gap-1.5 rounded-2xl p-2 active:scale-95 transition-transform"
                 >
                   <div class="w-11 h-11 rounded-2xl {config.bg} flex items-center justify-center shadow-sm">
-                    <span class="{config.color} [&_svg]:h-5 [&_svg]:w-5">{@html getTypeIcon(code)}</span>
+                    <span class="{config.color}"><svelte:component this={config.icon} size={18} strokeWidth={1.5} /></span>
                   </div>
                   <span class="text-[10px] font-semibold text-slate-600 leading-tight text-center line-clamp-2">{typeName}</span>
                 </button>
@@ -874,13 +844,14 @@
           <div class="flex-1 overflow-y-auto flex flex-col gap-2">
             {#each transactions as transaction}
               {@const isIncome = String(transaction.code_type || '').startsWith('4')}
+              {@const txnConfig = getTypeConfig(String(transaction.code_type || ''))}
               <button
                 on:click={() => openEditForm(transaction)}
                 class="w-full flex items-center gap-3 py-3 px-3 text-left bg-white rounded-xl shadow-[0_1px_8px_rgba(56,189,248,0.08)] border border-slate-100 active:scale-[0.98] transition-transform"
               >
                 <div class="w-10 h-10 rounded-xl {isIncome ? 'bg-emerald-50' : 'bg-red-50'} flex items-center justify-center flex-shrink-0">
-                  <span class="{isIncome ? 'text-emerald-500' : 'text-red-400'} [&_svg]:h-5 [&_svg]:w-5">
-                    {@html getTypeIcon(String(transaction.code_type || ''))}
+                  <span class="{isIncome ? 'text-emerald-500' : 'text-red-400'}">
+                    <svelte:component this={txnConfig.icon} size={18} strokeWidth={1.5} />
                   </span>
                 </div>
                 <div class="flex-1 min-w-0">
