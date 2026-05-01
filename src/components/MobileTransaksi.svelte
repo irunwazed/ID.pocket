@@ -49,9 +49,52 @@
   let loading = $state(false);
   let error: string | null = $state(null);
 
+  // swipe-to-delete state
+  let swipeOffset: Record<string, number> = $state({});
+  let swipeRevealed: Record<string, boolean> = $state({});
+  const swipeStart: Record<string, number> = {};
+  const REVEAL_W = 76;
+  const SNAP_THRESHOLD = 40;
+
+  function onTouchStart(id: string, e: TouchEvent) {
+    swipeStart[id] = e.touches[0].clientX;
+    // snap back any other revealed row
+    for (const k of Object.keys(swipeRevealed)) {
+      if (k !== id && swipeRevealed[k]) {
+        swipeOffset = { ...swipeOffset, [k]: 0 };
+        swipeRevealed = { ...swipeRevealed, [k]: false };
+      }
+    }
+  }
+
+  function onTouchMove(id: string, e: TouchEvent) {
+    const startX = swipeStart[id];
+    if (startX == null) return;
+    const dx = e.touches[0].clientX - startX;
+    if (dx > 4) { swipeOffset = { ...swipeOffset, [id]: 0 }; return; } // right swipe → snap
+    const clamped = Math.max(-REVEAL_W, dx);
+    swipeOffset = { ...swipeOffset, [id]: clamped };
+  }
+
+  function onTouchEnd(id: string) {
+    const off = swipeOffset[id] ?? 0;
+    if (Math.abs(off) >= SNAP_THRESHOLD) {
+      swipeOffset = { ...swipeOffset, [id]: -REVEAL_W };
+      swipeRevealed = { ...swipeRevealed, [id]: true };
+    } else {
+      swipeOffset = { ...swipeOffset, [id]: 0 };
+      swipeRevealed = { ...swipeRevealed, [id]: false };
+    }
+    delete swipeStart[id];
+  }
+
+  function snapBack(id: string) {
+    swipeOffset = { ...swipeOffset, [id]: 0 };
+    swipeRevealed = { ...swipeRevealed, [id]: false };
+  }
+
   let currentPage = $state(1);
   let pageSize = $state(10);
-  let totalItems = $state(0);
   let totalPages = $state(0);
 
   let filterType = $state('');
@@ -75,7 +118,6 @@
       if (filterMonth) filters.month = parseInt(filterMonth);
       const result = await transactionApi.getPaginated(currentPage, pageSize, Object.keys(filters).length > 0 ? filters : undefined);
       transactions = result.data;
-      totalItems = result.total;
       totalPages = result.totalPages;
     } catch (err: any) {
       error = err.message || 'Gagal memuat transaksi';
@@ -178,26 +220,52 @@
         {#each transactions as transaction}
           {@const isIncome = String(transaction.code_type || '').startsWith('4')}
           {@const txnConfig = getTypeConfig(String(transaction.code_type || ''))}
-          <button
-            onclick={() => onOpenEdit(transaction)}
-            class="w-full flex items-center gap-3 py-3 px-3 text-left bg-white rounded-xl shadow-[0_1px_8px_rgba(56,189,248,0.08)] border border-slate-100 active:scale-[0.98] transition-transform"
-          >
-            <div class="w-10 h-10 rounded-xl {isIncome ? 'bg-emerald-50' : 'bg-red-50'} flex items-center justify-center flex-shrink-0">
-              <span class="{isIncome ? 'text-emerald-500' : 'text-red-400'}">
-                <txnConfig.icon size={18} strokeWidth={1.5} />
-              </span>
+          {@const offset = swipeOffset[transaction.id] ?? 0}
+          {@const revealed = swipeRevealed[transaction.id] ?? false}
+          {@const progress = Math.min(1, Math.abs(offset) / REVEAL_W)}
+          <div class="relative rounded-xl overflow-hidden">
+            <!-- Delete button — fades in as card slides -->
+            <div
+              class="absolute inset-y-0 right-0 flex items-center justify-center bg-red-500 rounded-r-xl"
+              style="width: {REVEAL_W}px; opacity: {progress}; transform: scale({0.6 + progress * 0.4}); pointer-events: {progress > 0.5 ? 'auto' : 'none'};"
+            >
+              <button
+                onclick={() => handleDelete(transaction.id)}
+                class="flex flex-col items-center gap-0.5 text-white px-3 active:opacity-70"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                <span class="text-[10px] font-bold">Hapus</span>
+              </button>
             </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-semibold text-slate-800 truncate">{transaction.note || '-'}</p>
-              <p class="text-[11px] text-slate-400">{monthNames[(transaction.month || 1) - 1]} {transaction.year}</p>
-            </div>
-            <div class="text-right flex-shrink-0">
-              <p class="text-sm font-bold {isIncome ? 'text-emerald-600' : 'text-red-500'}">
-                {isIncome ? '+' : '-'}{formatMoney(Math.abs(transaction.money || 0))}
-              </p>
-              <p class="text-[10px] text-slate-400">{#if transaction.created_at}{new Date(transaction.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}{/if}{#if transaction.created_by} · {transaction.created_by}{/if}</p>
-            </div>
-          </button>
+
+            <!-- Row card (slides left on swipe) -->
+            <button
+              ontouchstart={(e) => onTouchStart(transaction.id, e)}
+              ontouchmove={(e) => onTouchMove(transaction.id, e)}
+              ontouchend={() => onTouchEnd(transaction.id)}
+              onclick={() => { if (revealed) { snapBack(transaction.id); return; } onOpenEdit(transaction); }}
+              style="transform: translateX({offset}px); transition: transform {swipeStart[transaction.id] != null ? '0ms' : '200ms'} ease-out;"
+              class="relative w-full flex items-center gap-3 py-3 px-3 text-left bg-white rounded-xl shadow-[0_1px_8px_rgba(56,189,248,0.08)] border border-slate-100"
+            >
+              <div class="w-10 h-10 rounded-xl {isIncome ? 'bg-emerald-50' : 'bg-red-50'} flex items-center justify-center flex-shrink-0">
+                <span class="{isIncome ? 'text-emerald-500' : 'text-red-400'}">
+                  <txnConfig.icon size={18} strokeWidth={1.5} />
+                </span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-slate-800 truncate">{transaction.note || '-'}</p>
+                <p class="text-[11px] text-slate-400">{monthNames[(transaction.month || 1) - 1]} {transaction.year}</p>
+              </div>
+              <div class="text-right flex-shrink-0">
+                <p class="text-sm font-bold {isIncome ? 'text-emerald-600' : 'text-red-500'}">
+                  {isIncome ? '+' : '-'}{formatMoney(Math.abs(transaction.money || 0))}
+                </p>
+                <p class="text-[10px] text-slate-400">{#if transaction.created_at}{new Date(transaction.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}{/if}{#if transaction.created_by} · {transaction.created_by}{/if}</p>
+              </div>
+            </button>
+          </div>
         {/each}
       </div>
 
