@@ -12,10 +12,12 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     optimizeDeps: {
-      exclude: ['@huggingface/transformers']
-    },
-    ssr: {
-      external: ['@huggingface/transformers', 'onnxruntime-node', 'sharp']
+      exclude: [
+        '@huggingface/transformers',
+        'onnxruntime-web',
+        'onnxruntime-node',
+        'sharp',
+      ]
     }
   },
   integrations: [svelte()]

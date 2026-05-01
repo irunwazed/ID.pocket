@@ -134,7 +134,7 @@
     if (transcriber) return transcriber;
     modelLoadProgress = 'Memuat model Whisper...';
     try {
-      const { pipeline, env } = await import('@huggingface/transformers');
+      const { pipeline, env } = await import(/* @vite-ignore */ '@huggingface/transformers');
       env.allowLocalModels = false; // always fetch from HF Hub
       transcriber = await pipeline(
         'automatic-speech-recognition',
