@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { transactionApi } from '../lib/api';
   import type { Transaction, Type } from '../lib/types';
   import { Briefcase, CircleDollarSign, Gift, Shirt, Sparkles, UtensilsCrossed, Cookie, ShoppingCart, Flame, House, Brush, Zap, Bike, Smartphone, Wrench, GraduationCap, FileText, Landmark, Gamepad2, Plane, HeartHandshake, Pill, Stethoscope, Hospital, Scale, Package, Tag } from 'lucide-svelte';
@@ -151,10 +152,11 @@
   }
 
   $effect(() => {
-    // re-fetch whenever refreshTick changes (form submitted) or on mount
-    refreshTick;
-    currentPage = 1;
-    fetchTransactions();
+    refreshTick; // only track this — untrack prevents currentPage/filter deps from re-triggering effect
+    untrack(() => {
+      currentPage = 1;
+      fetchTransactions();
+    });
   });
 </script>
 
