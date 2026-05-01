@@ -1,5 +1,15 @@
 import type { User, Transaction, Type, TransactionStats } from './types';
 
+export interface ChatHistoryEntry {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  provider: string;
+  username?: string;
+  isError?: boolean;
+}
+
 const API_BASE = '/api';
 
 // Helper function to get auth token from cookie
@@ -220,6 +230,29 @@ export const recapApi = {
     const params = year ? `?year=${year}` : '';
     return fetchAPI(`${API_BASE}/recap${params}`);
   }
+};
+
+// ============ CHAT API ============
+export const chatApi = {
+  async getHistory(): Promise<ChatHistoryEntry[]> {
+    const data = await fetchAPI(`${API_BASE}/chat`);
+    return Array.isArray(data) ? data : [];
+  },
+
+  async send(
+    message: string,
+    provider: string,
+    history: { role: string; content: string }[]
+  ): Promise<{ reply: string; userEntry: ChatHistoryEntry; assistantEntry: ChatHistoryEntry }> {
+    return fetchAPI(`${API_BASE}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ message, provider, history }),
+    });
+  },
+
+  async clearHistory(): Promise<void> {
+    return fetchAPI(`${API_BASE}/chat`, { method: 'DELETE' });
+  },
 };
 
 // ============ GRAFIK API ============

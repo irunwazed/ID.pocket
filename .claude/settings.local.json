@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npx svelte-check *)",
+      "WebFetch(domain:opencode.ai)",
+      "WebFetch(domain:models.dev)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s \"https://models.dev/api/v1/providers/opencode\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/sst/opencode/main/packages/opencode/src/provider/providers.ts\")",
+      "Bash(curl -s \"https://api.github.com/repos/sst/opencode/contents/packages/opencode/src/provider\")",
+      "Bash(python3 -c \"import sys,json; [print\\(f['name']\\) for f in json.load\\(sys.stdin\\) if isinstance\\(f,dict\\)]\")",
+      "WebFetch(domain:github.com)",
+      "Bash(curl -s \"https://api.github.com/repos/sst/opencode/git/trees/main?recursive=1\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -fsSL \"https://api.github.com/repos/sst/opencode\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('default_branch','?'\\), d.get\\('description',''\\)\\)\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/packages/opencode/src/provider/providers.ts\")",
+      "Bash(curl -fsSL \"https://api.github.com/repos/sst/opencode/git/trees/dev?recursive=1\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/packages/console/app/src/routes/zen/go/v1/chat/completions.ts\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/packages/console/app/src/routes/zen/go/v1/messages.ts\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/packages/console/app/src/routes/zen/go/v1/models.ts\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/packages/opencode/src/provider/zen.ts\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/packages/opencode/src/provider/index.ts\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/packages/opencode/src/provider.ts\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/sst.config.ts\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/infra/console.ts\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/infra/stage.ts\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/packages/console/app/src/routes/zen/v1/chat/completions.ts\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/sst/opencode/dev/packages/console-core/src/model.ts\")",
+      "Bash(curl -s \"https://opencode.ai/zen/v1/models\" -H \"Authorization: Bearer test\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(m['id']\\) for m in d.get\\('data',[]\\)]\")"
+    ]
+  }
+}

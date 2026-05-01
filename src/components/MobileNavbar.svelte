@@ -21,7 +21,7 @@
   <div class="flex items-end justify-around h-16 max-w-lg mx-auto">
     {#each leftTabs as tab}
       <button
-        on:click={() => selectTab(tab.id)}
+        onclick={() => selectTab(tab.id)}
         class="flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 transition-all duration-200 {activeTab === tab.id ? 'text-sky-600' : 'text-gray-400 active:text-sky-400'}"
       >
         {#if tab.id === 'rekap'}
@@ -39,7 +39,7 @@
     {/each}
 
     <button
-      on:click={() => selectTab('home')}
+      onclick={() => selectTab('home')}
       class="flex flex-col items-center justify-center -mt-5 transition-transform duration-200 {activeTab === 'home' ? 'scale-100' : 'scale-95 active:scale-90'}"
     >
       <div class="w-14 h-14 rounded-full {activeTab === 'home' ? 'bg-gradient-to-br from-sky-400 to-blue-500 shadow-lg shadow-sky-200/60' : 'bg-gradient-to-br from-sky-300 to-blue-400'} flex items-center justify-center">
@@ -52,7 +52,7 @@
 
     {#each rightTabs as tab}
       <button
-        on:click={() => selectTab(tab.id)}
+        onclick={() => selectTab(tab.id)}
         class="flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 transition-all duration-200 {activeTab === tab.id ? 'text-sky-600' : 'text-gray-400 active:text-sky-400'}"
       >
         {#if tab.id === 'transaksi'}
