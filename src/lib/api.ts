@@ -221,3 +221,28 @@ export const recapApi = {
     return fetchAPI(`${API_BASE}/recap${params}`);
   }
 };
+
+// ============ GRAFIK API ============
+export const grafikApi = {
+  async getMonthly(year?: number): Promise<{
+    year: number;
+    months: Array<{ month: number; income: number; expense: number; balance: number }>;
+    totalIncome: number;
+    totalExpense: number;
+    totalBalance: number;
+  }> {
+    const params = year ? `?year=${year}` : '';
+    return fetchAPI(`${API_BASE}/grafik${params}`);
+  },
+
+  async getTipes(year?: number, codeType?: string): Promise<{
+    year: number;
+    tipes: Array<{ code_type: string; name: string; total: number; monthly: number[] }>;
+  }> {
+    const params = new URLSearchParams();
+    if (year) params.set('year', String(year));
+    if (codeType) params.set('code_type', codeType);
+    const qs = params.toString();
+    return fetchAPI(`${API_BASE}/grafik/tipes${qs ? '?' + qs : ''}`);
+  }
+};

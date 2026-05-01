@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { transactionApi, recapApi, statsApi, typeApi } from '../lib/api';
+  import { transactionApi, recapApi, statsApi, typeApi, grafikApi } from '../lib/api';
   import type { Transaction, TransactionStats, Type } from '../lib/types';
   import MobileNavbar from './MobileNavbar.svelte';
   import Modal from './Modal.svelte';
@@ -54,24 +54,34 @@
   let selectedYear = $state(new Date().getFullYear());
   let selectedRecapMonth = $state(0); // 0 = semua bulan
 
+  // Grafik state
+  let grafikData: any = $state(null);
+  let grafikTipes: any = $state(null);
+  let loadinGrafik = $state(false);
+  let errorGrafik: string | null = $state(null);
+  let grafikYear = $state(new Date().getFullYear());
+  let grafikTypeFilter = $state('');
+  let showDetailTable = $state(false);
+  let showMonthlyTable = $state(false);
+
   // Month names
   const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
   // Type icon & color mapping
   const typeConfig: Record<string, { icon: string; color: string; bg: string }> = {
     '401': { icon: '💼', color: 'text-emerald-700', bg: 'bg-emerald-50' },
-    '402': { icon: '💵', color: 'text-green-700', bg: 'bg-green-50' },
+    '402': { icon: '💰', color: 'text-green-700', bg: 'bg-green-50' },
     '403': { icon: '🎁', color: 'text-teal-700', bg: 'bg-teal-50' },
-    '50101': { icon: '👕', color: 'text-pink-700', bg: 'bg-pink-50' },
+    '50101': { icon: '👔', color: 'text-pink-700', bg: 'bg-pink-50' },
     '50102': { icon: '💅', color: 'text-rose-700', bg: 'bg-rose-50' },
-    '50201': { icon: '🍽️', color: 'text-orange-700', bg: 'bg-orange-50' },
+    '50201': { icon: '🍛', color: 'text-orange-700', bg: 'bg-orange-50' },
     '50202': { icon: '🍿', color: 'text-amber-700', bg: 'bg-amber-50' },
-    '50203': { icon: '🍳', color: 'text-yellow-700', bg: 'bg-yellow-50' },
+    '50203': { icon: '🛒', color: 'text-yellow-700', bg: 'bg-yellow-50' },
     '50204': { icon: '🧂', color: 'text-lime-700', bg: 'bg-lime-50' },
     '50301': { icon: '🏠', color: 'text-blue-700', bg: 'bg-blue-50' },
     '50302': { icon: '🧹', color: 'text-sky-700', bg: 'bg-sky-50' },
     '50303': { icon: '⚡', color: 'text-cyan-700', bg: 'bg-cyan-50' },
-    '50304': { icon: '🚗', color: 'text-indigo-700', bg: 'bg-indigo-50' },
+    '50304': { icon: '🛵', color: 'text-indigo-700', bg: 'bg-indigo-50' },
     '50305': { icon: '📱', color: 'text-violet-700', bg: 'bg-violet-50' },
     '50309': { icon: '🔧', color: 'text-gray-700', bg: 'bg-gray-100' },
     '50401': { icon: '🎓', color: 'text-purple-700', bg: 'bg-purple-50' },
@@ -79,7 +89,7 @@
     '50502': { icon: '🏦', color: 'text-red-700', bg: 'bg-red-50' },
     '50601': { icon: '🎮', color: 'text-fuchsia-700', bg: 'bg-fuchsia-50' },
     '50602': { icon: '✈️', color: 'text-sky-700', bg: 'bg-sky-50' },
-    '50701': { icon: '❤️', color: 'text-red-700', bg: 'bg-red-50' },
+    '50701': { icon: '🤲', color: 'text-red-700', bg: 'bg-red-50' },
     '50801': { icon: '💊', color: 'text-emerald-700', bg: 'bg-emerald-50' },
     '50802': { icon: '🩺', color: 'text-teal-700', bg: 'bg-teal-50' },
     '50803': { icon: '🏥', color: 'text-cyan-700', bg: 'bg-cyan-50' },
@@ -190,6 +200,39 @@
     }
   }
 
+  async function fetchGrafik() {
+    loadinGrafik = true;
+    errorGrafik = null;
+    try {
+      const [monthlyRes, tipesRes] = await Promise.all([
+        grafikApi.getMonthly(grafikYear),
+        grafikApi.getTipes(grafikYear, grafikTypeFilter || undefined)
+      ]);
+      grafikData = monthlyRes;
+      grafikTipes = tipesRes.tipes;
+    } catch (err: any) {
+      errorGrafik = err.message || 'Gagal memuat grafik';
+    } finally {
+      loadinGrafik = false;
+    }
+  }
+
+  let grafikMaxLine = $derived(grafikData
+    ? Math.max(...grafikData.months.map((m: any) => Math.max(m.income, m.expense, Math.abs(m.balance))), 1)
+    : 1);
+
+  let grafikLeafTipes = $derived(grafikTipes
+    ? (() => {
+        if (grafikTipes.length === 0) return [];
+        const maxDepth = Math.max(...grafikTipes.map((t: any) => t.code_type.split('.').length));
+        return grafikTipes.filter((t: any) => t.code_type.split('.').length === maxDepth);
+      })()
+    : []);
+
+  let grafikMaxType = $derived(grafikLeafTipes.length > 0
+    ? Math.max(...grafikLeafTipes.map((t: any) => t.total), 1)
+    : 1);
+
   function resetForm() {
     formData = {
       year: new Date().getFullYear(),
@@ -288,22 +331,26 @@
 
   $effect(() => {
     if (activeTab === 'rekap') fetchRecap();
+    if (activeTab === 'grafik') {
+      fetchTypes();
+      fetchGrafik();
+    }
   });
 </script>
 
-<div class="min-h-screen pb-20" style="font-family: 'Quicksand', sans-serif;">
+<div class="min-h-screen pb-24 bg-white" style="font-family: 'Quicksand', sans-serif; background-image: linear-gradient(180deg, rgba(224,242,254,0.4) 0%, rgba(255,255,255,0) 30%);">
   {#if activeTab === 'home'}
     <!-- HOME TAB -->
     <div class="px-4 pt-6">
       <div class="mb-5">
-        <h1 class="text-2xl font-bold text-gray-800" style="font-family: 'Quicksand', sans-serif;">ID Flow</h1>
-        <p class="text-sm text-gray-500">Halo, {currentUser?.name || 'User'} 👋</p>
+        <h1 class="text-2xl font-bold text-slate-800" style="font-family: 'Quicksand', sans-serif;">ID Flow</h1>
+        <p class="text-sm text-slate-400">Halo, {currentUser?.name || 'User'} 👋</p>
       </div>
 
       <!-- Monthly Summary -->
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-5">
+      <div class="bg-white rounded-2xl shadow-[0_1px_8px_rgba(56,189,248,0.08)] border border-slate-100 p-4 mb-5">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-sm font-bold text-gray-700">{monthNames[currentMonth - 1]} {currentYear}</h2>
+          <h2 class="text-sm font-bold text-slate-700">{monthNames[currentMonth - 1]} {currentYear}</h2>
           <span class="text-[10px] font-semibold {monthlyBalance >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50'} px-2 py-0.5 rounded-full">
             {monthlyBalance >= 0 ? ' surplus' : ' defisit'}
           </span>
@@ -311,24 +358,24 @@
         <div class="grid grid-cols-3 gap-3">
           <div class="text-center">
             <div class="w-10 h-10 mx-auto rounded-xl bg-emerald-50 flex items-center justify-center mb-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 11l5-5m0 0l5 5m-5-5v12"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>
             </div>
-            <p class="text-[10px] text-gray-400 font-medium">Pemasukan</p>
+            <p class="text-[10px] text-slate-400 font-medium">Pemasukan</p>
             <p class="text-sm font-bold text-emerald-600">{formatMoney(monthlyIncome)}</p>
           </div>
           <div class="text-center">
             <div class="w-10 h-10 mx-auto rounded-xl bg-red-50 flex items-center justify-center mb-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 13l-5 5m0 0l-5-5m5 5V6"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h15m-15 0V6a2.25 2.25 0 012.25-2.25h10.5A2.25 2.25 0 0122 6v2.25m-19.75 0v7.5a2.25 2.25 0 002.25 2.25h10.5a2.25 2.25 0 002.25-2.25v-7.5"/></svg>
             </div>
-            <p class="text-[10px] text-gray-400 font-medium">Pengeluaran</p>
+            <p class="text-[10px] text-slate-400 font-medium">Pengeluaran</p>
             <p class="text-sm font-bold text-red-500">{formatMoney(monthlyExpense)}</p>
           </div>
           <div class="text-center">
-            <div class="w-10 h-10 mx-auto rounded-xl {monthlyBalance >= 0 ? 'bg-indigo-50' : 'bg-amber-50'} flex items-center justify-center mb-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 {monthlyBalance >= 0 ? 'text-indigo-600' : 'text-amber-600'}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.403 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.403-2.599-1"/></svg>
+            <div class="w-10 h-10 mx-auto rounded-xl {monthlyBalance >= 0 ? 'bg-blue-50' : 'bg-amber-50'} flex items-center justify-center mb-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 {monthlyBalance >= 0 ? 'text-blue-500' : 'text-amber-500'}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
             </div>
-            <p class="text-[10px] text-gray-400 font-medium">Sisa</p>
-            <p class="text-sm font-bold {monthlyBalance >= 0 ? 'text-indigo-600' : 'text-amber-600'}">{formatMoney(Math.abs(monthlyBalance))}</p>
+            <p class="text-[10px] text-slate-400 font-medium">Sisa</p>
+            <p class="text-sm font-bold {monthlyBalance >= 0 ? 'text-blue-600' : 'text-amber-600'}">{formatMoney(Math.abs(monthlyBalance))}</p>
           </div>
         </div>
       </div>
@@ -336,7 +383,7 @@
       <!-- Type Quick Actions -->
       {#each typeGroups as group}
         <div class="mb-4">
-          <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{group.label}</h2>
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{group.label}</h2>
           <div class="grid grid-cols-4 gap-2">
             {#each group.codes as code}
               {@const config = getTypeConfig(code)}
@@ -352,61 +399,14 @@
           </div>
         </div>
       {/each}
-
-      {#if loading}
-        <div class="flex justify-center py-8">
-          <div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-        </div>
-      {:else if error}
-        <div class="bg-red-50 text-red-600 p-4 rounded-xl text-sm">{error}</div>
-      {:else if stats}
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-3 gap-3 mb-6">
-          <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-4 text-white">
-            <p class="text-[10px] uppercase tracking-wider opacity-80">Total Transaksi</p>
-            <p class="text-xl font-bold mt-1">{stats.totalTransactions}</p>
-          </div>
-          <div class="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-4 text-white">
-            <p class="text-[10px] uppercase tracking-wider opacity-80">Total Uang</p>
-            <p class="text-lg font-bold mt-1">{formatMoney(stats.totalMoney)}</p>
-          </div>
-          <div class="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white">
-            <p class="text-[10px] uppercase tracking-wider opacity-80">Rata-rata</p>
-            <p class="text-lg font-bold mt-1">{formatMoney(Math.round(stats.averageMoney))}</p>
-          </div>
-        </div>
-
-        <!-- Recent Transactions -->
-        <div class="mb-4">
-          <div class="flex justify-between items-center mb-3">
-            <h2 class="text-base font-bold text-gray-800">Transaksi Terakhir</h2>
-            <button on:click={() => activeTab = 'transaksi'} class="text-xs text-indigo-600 font-semibold">Lihat Semua</button>
-          </div>
-          <div class="space-y-2">
-            {#each transactions.slice(0, 5) as transaction}
-              <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                <div class="flex justify-between items-start">
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-gray-800 truncate">{transaction.note || '-'}</p>
-                    <p class="text-[11px] text-gray-400 mt-0.5">{transaction.code_type || '-'} · {monthNames[(transaction.month || 1) - 1]} {transaction.year}</p>
-                  </div>
-                  <p class="text-sm font-bold {String(transaction.code_type || '').startsWith('4') ? 'text-emerald-600' : 'text-red-500'}">
-                    {String(transaction.code_type || '').startsWith('4') ? '+' : '-'}{formatMoney(Math.abs(transaction.money || 0))}
-                  </p>
-                </div>
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/if}
     </div>
 
   {:else if activeTab === 'rekap'}
     <!-- REKAP TAB -->
     <div class="px-4 pt-6">
       <div class="flex items-center justify-between mb-4">
-        <h1 class="text-xl font-bold text-gray-800">Rekapitulasi</h1>
-        <select bind:value={selectedYear} on:change={() => fetchRecap()} class="text-sm bg-white border border-gray-200 rounded-lg px-3 py-1.5 font-medium">
+        <h1 class="text-xl font-bold text-slate-800">Rekapitulasi</h1>
+        <select bind:value={selectedYear} on:change={() => fetchRecap()} class="text-sm bg-white border border-slate-200 rounded-xl px-3 py-1.5 font-medium text-slate-700">
           {#each [2025, 2026, 2027] as year}
             <option value={year}>{year}</option>
           {/each}
@@ -415,22 +415,22 @@
 
       {#if loadinRecap}
         <div class="flex justify-center py-12">
-          <div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+          <div class="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div>
         </div>
       {:else if errorRecap}
-        <div class="bg-red-50 text-red-600 p-4 rounded-xl text-sm">{errorRecap}</div>
+        <div class="bg-red-50/80 text-red-600 p-4 rounded-2xl text-sm">{errorRecap}</div>
       {:else if recapData}
         <!-- Summary Cards -->
         <div class="grid grid-cols-3 gap-3 mb-5">
-          <div class="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-3 text-white">
+          <div class="bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl p-3 text-white shadow-sm shadow-emerald-200/50">
             <p class="text-[10px] uppercase tracking-wider opacity-80">Pemasukan</p>
             <p class="text-base font-bold mt-1">{formatMoney(recapData.income || 0)}</p>
           </div>
-          <div class="bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl p-3 text-white">
+          <div class="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-3 text-white shadow-sm shadow-rose-200/50">
             <p class="text-[10px] uppercase tracking-wider opacity-80">Pengeluaran</p>
             <p class="text-base font-bold mt-1">{formatMoney(recapData.expense || 0)}</p>
           </div>
-          <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-3 text-white">
+          <div class="bg-gradient-to-br from-sky-400 to-blue-600 rounded-2xl p-3 text-white shadow-sm shadow-sky-200/50">
             <p class="text-[10px] uppercase tracking-wider opacity-80">Saldo</p>
             <p class="text-base font-bold mt-1">{formatMoney(recapData.balance || 0)}</p>
           </div>
@@ -438,8 +438,8 @@
 
         <!-- Monthly Balance -->
         {#if recapData.monthlyBalance}
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
-            <h3 class="text-sm font-bold text-gray-700 mb-3">Saldo Bulanan</h3>
+          <div class="bg-white rounded-2xl shadow-[0_1px_8px_rgba(56,189,248,0.08)] border border-slate-100 p-4 mb-4">
+            <h3 class="text-sm font-bold text-slate-700 mb-3">Saldo Bulanan</h3>
             <div class="space-y-2">
               {#each recapData.monthlyBalance as balance, i}
                 {#if balance !== 0}
@@ -455,10 +455,10 @@
 
         <!-- Details by type -->
         {#if recapData.details}
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div class="bg-white rounded-2xl shadow-[0_1px_8px_rgba(56,189,248,0.08)] border border-slate-100 p-4">
             <div class="flex items-center justify-between mb-3">
-              <h3 class="text-sm font-bold text-gray-700">Rincian per Tipe</h3>
-              <select bind:value={selectedRecapMonth} class="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 font-medium">
+              <h3 class="text-sm font-bold text-slate-700">Rincian per Tipe</h3>
+              <select bind:value={selectedRecapMonth} class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700">
                 <option value={0}>Semua Bulan</option>
                 {#each monthNames as m, i}
                   <option value={i + 1}>{m}</option>
@@ -522,19 +522,248 @@
       {/if}
     </div>
 
+  {:else if activeTab === 'grafik'}
+    <!-- GRAFIK TAB -->
+    <div class="px-4 pt-6">
+      <div class="flex items-center justify-between mb-4">
+        <h1 class="text-xl font-bold text-slate-800">Grafik</h1>
+        <select bind:value={grafikYear} on:change={() => fetchGrafik()} class="text-sm bg-white border border-slate-200 rounded-xl px-3 py-1.5 font-medium text-slate-700">
+          {#each [2025, 2026, 2027] as year}
+            <option value={year}>{year}</option>
+          {/each}
+        </select>
+      </div>
+
+      {#if loadinGrafik}
+        <div class="flex justify-center py-12">
+          <div class="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div>
+        </div>
+      {:else if errorGrafik}
+        <div class="bg-red-50/80 text-red-600 p-4 rounded-2xl text-sm">{errorGrafik}</div>
+      {:else if grafikData}
+        <!-- Line Chart: Monthly Income vs Expense vs Balance -->
+        <div class="bg-white rounded-2xl shadow-[0_1px_8px_rgba(56,189,248,0.08)] border border-slate-100 p-4 mb-4">
+          <h3 class="text-sm font-bold text-slate-700 mb-3">Pemasukan, Pengeluaran & Sisa</h3>
+          <div class="relative h-44">
+            {#each Array(5) as _, i}
+              <div class="absolute left-0 right-0 border-t border-gray-100" style="bottom: {i * 20}%"></div>
+            {/each}
+            <svg class="absolute inset-0 w-full h-full" viewBox="0 0 600 200" preserveAspectRatio="none">
+              <polyline
+                fill="none"
+                stroke="#10b981"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                points="{grafikData.months.map((m: any, i: number) => {
+                  const x = (i / 11) * 580 + 10;
+                  const y = 200 - (m.income / grafikMaxLine) * 180 - 10;
+                  return `${x},${y}`;
+                }).join(' ')}"
+              />
+              <polyline
+                fill="none"
+                stroke="#ef4444"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                points="{grafikData.months.map((m: any, i: number) => {
+                  const x = (i / 11) * 580 + 10;
+                  const y = 200 - (m.expense / grafikMaxLine) * 180 - 10;
+                  return `${x},${y}`;
+                }).join(' ')}"
+              />
+              <polyline
+                fill="none"
+                stroke="#6366f1"
+                stroke-width="2"
+                stroke-dasharray="6,3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                points="{grafikData.months.map((m: any, i: number) => {
+                  const x = (i / 11) * 580 + 10;
+                  const y = 200 - (Math.max(0, m.balance) / grafikMaxLine) * 180 - 10;
+                  return `${x},${y}`;
+                }).join(' ')}"
+              />
+              {#each grafikData.months as m, i}
+                {@const x = (i / 11) * 580 + 10}
+                {@const yInc = 200 - (m.income / grafikMaxLine) * 180 - 10}
+                {@const yExp = 200 - (m.expense / grafikMaxLine) * 180 - 10}
+                <circle cx={x} cy={yInc} r="3" fill="#10b981" />
+                <circle cx={x} cy={yExp} r="3" fill="#ef4444" />
+              {/each}
+            </svg>
+          </div>
+          <div class="flex justify-between mt-1 px-0">
+            {#each grafikData.months as m, i}
+              <span class="text-[8px] text-slate-400 {i % 2 === 0 ? 'font-medium' : ''}">{monthNames[i]?.slice(0, 3)}</span>
+            {/each}
+          </div>
+          <div class="flex justify-center gap-4 mt-3">
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-0.5 bg-emerald-500 rounded"></div>
+              <span class="text-[10px] text-gray-500">Masuk</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-0.5 bg-red-500 rounded"></div>
+              <span class="text-[10px] text-gray-500">Keluar</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-0.5 border-t-2 border-dashed border-indigo-500 rounded"></div>
+              <span class="text-[10px] text-gray-500">Sisa</span>
+            </div>
+          </div>
+          <button on:click={() => showMonthlyTable = !showMonthlyTable} class="w-full mt-3 text-xs text-sky-600 font-semibold flex items-center justify-center gap-1 py-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 transition-transform {showMonthlyTable ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            {showMonthlyTable ? 'Sembunyikan Tabel' : 'Lihat Tabel Detail'}
+          </button>
+          {#if showMonthlyTable}
+            <div class="mt-3 overflow-x-auto">
+              <table class="w-full text-[11px]">
+                <thead>
+                  <tr class="border-b border-gray-100">
+                    <th class="text-left py-1.5 text-slate-400 font-medium">Bulan</th>
+                    <th class="text-right py-1.5 text-emerald-600 font-medium">Masuk</th>
+                    <th class="text-right py-1.5 text-red-500 font-medium">Keluar</th>
+                    <th class="text-right py-1.5 text-indigo-600 font-medium">Sisa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each grafikData.months as m}
+                    <tr class="border-b border-gray-50">
+                      <td class="py-1.5 text-gray-600">{monthNames[m.month - 1]?.slice(0, 3)}</td>
+                      <td class="py-1.5 text-right text-emerald-600 font-semibold">{m.income > 0 ? formatMoney(m.income) : '-'}</td>
+                      <td class="py-1.5 text-right text-red-500 font-semibold">{m.expense > 0 ? formatMoney(m.expense) : '-'}</td>
+                      <td class="py-1.5 text-right text-indigo-600 font-semibold">{m.balance !== 0 ? formatMoney(m.balance) : '-'}</td>
+                    </tr>
+                  {/each}
+                  <tr class="border-t-2 border-gray-200 font-bold">
+                    <td class="py-1.5 text-gray-700">Total</td>
+                    <td class="py-1.5 text-right text-emerald-600">{formatMoney(grafikData.totalIncome)}</td>
+                    <td class="py-1.5 text-right text-red-500">{formatMoney(grafikData.totalExpense)}</td>
+                    <td class="py-1.5 text-right text-indigo-600">{formatMoney(grafikData.totalBalance)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Per-Type Line Chart -->
+        <div class="bg-white rounded-2xl shadow-[0_1px_8px_rgba(56,189,248,0.08)] border border-slate-100 p-4 mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-700">Per Tipe</h3>
+            <select bind:value={grafikTypeFilter} on:change={() => fetchGrafik()} class="text-[11px] bg-sky-50/80 border border-blue-100 rounded-lg px-2 py-1 font-medium text-slate-700 max-w-[55%]">
+              <option value="">Semua</option>
+              <optgroup label="Pemasukan">
+                <option value="4">Semua Pendapatan</option>
+                {#each types.filter((t: any) => String(t.code_type).startsWith('4') && String(t.code_type) !== '4').toSorted((a: any, b: any) => String(a.code_type).localeCompare(String(b.code_type))) as t}
+                  <option value={t.code_type}>{t.name}</option>
+                {/each}
+              </optgroup>
+              <optgroup label="Pengeluaran">
+                <option value="5">Semua Pengeluaran</option>
+                {#each types.filter((t: any) => String(t.code_type).startsWith('5') && String(t.code_type) !== '5').toSorted((a: any, b: any) => String(a.code_type).localeCompare(String(b.code_type))) as t}
+                  <option value={t.code_type}>{t.name}</option>
+                {/each}
+              </optgroup>
+            </select>
+          </div>
+          {#if grafikLeafTipes.length > 0}
+            {@const lineColors = ['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4','#84cc16','#6366f1','#e11d48','#0ea5e9','#a3e635','#d946ef','#fb923c','#22d3ee','#facc15','#4ade80','#f87171']}
+            {@const maxTypeMonthly = Math.max(...grafikLeafTipes.flatMap((t: any) => t.monthly), 1)}
+            <div class="relative h-48">
+              {#each Array(4) as _, i}
+                <div class="absolute left-0 right-0 border-t border-gray-100" style="bottom: {i * 25}%"></div>
+              {/each}
+              <svg class="absolute inset-0 w-full h-full" viewBox="0 0 600 200" preserveAspectRatio="none">
+                {#each grafikLeafTipes as tipe, idx}
+                  {@const color = lineColors[idx % lineColors.length]}
+                  <polyline
+                    fill="none"
+                    stroke={color}
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    points="{tipe.monthly.map((val: number, mi: number) => {
+                      const x = (mi / 11) * 580 + 10;
+                      const y = 200 - (val / maxTypeMonthly) * 180 - 10;
+                      return `${x},${y}`;
+                    }).join(' ')}"
+                  />
+                {/each}
+              </svg>
+            </div>
+            <div class="flex justify-between mt-1 px-0">
+              {#each grafikData.months as m, i}
+                <span class="text-[8px] text-slate-400 {i % 2 === 0 ? 'font-medium' : ''}">{monthNames[i]?.slice(0, 3)}</span>
+              {/each}
+            </div>
+            <div class="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+              {#each grafikLeafTipes as tipe, idx}
+                {@const color = lineColors[idx % lineColors.length]}
+                <div class="flex items-center gap-1.5">
+                  <div class="w-3 h-0.5 rounded" style="background: {color}"></div>
+                  <span class="text-[10px] text-gray-500">{tipe.name}</span>
+                  <span class="text-[10px] font-bold {tipe.code_type.startsWith('4') ? 'text-emerald-600' : 'text-red-500'}">{formatMoney(tipe.total)}</span>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <p class="text-sm text-slate-400 text-center py-4">Tidak ada data</p>
+          {/if}
+          {#if grafikLeafTipes.length > 0}
+            <button on:click={() => showDetailTable = !showDetailTable} class="w-full mt-3 text-xs text-sky-600 font-semibold flex items-center justify-center gap-1 py-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 transition-transform {showDetailTable ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              {showDetailTable ? 'Sembunyikan Tabel' : 'Lihat Tabel Detail'}
+            </button>
+          {/if}
+          {#if showDetailTable && grafikLeafTipes.length > 0}
+            <div class="mt-3 overflow-x-auto -mx-4 px-4">
+              <table class="w-full text-[9px] min-w-[400px]">
+                <thead>
+                  <tr class="border-b border-gray-100">
+                    <th class="text-left py-1.5 pr-2 text-slate-400 font-medium sticky left-0 bg-white min-w-[60px]">Tipe</th>
+                    {#each grafikData.months as m}
+                      <th class="text-right py-1.5 px-0.5 text-slate-400 font-medium">{monthNames[m.month - 1]?.slice(0, 3)}</th>
+                    {/each}
+                    <th class="text-right py-1.5 pl-1 text-slate-400 font-medium">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each grafikLeafTipes as tipe}
+                    <tr class="border-b border-gray-50">
+                      <td class="py-1 pr-2 text-gray-700 font-medium sticky left-0 bg-white">{tipe.name}</td>
+                      {#each tipe.monthly as val}
+                        <td class="py-1 px-0.5 text-right {val > 0 ? (tipe.code_type.startsWith('4') ? 'text-emerald-600' : 'text-red-500') : 'text-gray-300'}">
+                          {val > 0 ? formatMoney(val) : '-'}
+                        </td>
+                      {/each}
+                      <td class="py-1 pl-1 text-right font-bold {tipe.code_type.startsWith('4') ? 'text-emerald-600' : 'text-red-500'}">{formatMoney(tipe.total)}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
   {:else if activeTab === 'transaksi'}
     <!-- TRANSAKSI TAB -->
     <div class="px-4 pt-6">
       <div class="flex items-center justify-between mb-3">
-        <h1 class="text-xl font-bold text-gray-800">Transaksi</h1>
+        <h1 class="text-xl font-bold text-slate-800">Transaksi</h1>
         <div class="flex items-center gap-2">
-          <button on:click={() => showFilter = !showFilter} class="p-2 rounded-xl border border-gray-200 bg-white active:bg-gray-50 relative">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          <button on:click={() => showFilter = !showFilter} class="p-2 rounded-xl border border-slate-200 bg-white active:bg-slate-50 relative">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-sky-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
             {#if filterType || filterNote || filterYear || filterMonth}
-              <span class="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full"></span>
+              <span class="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></span>
             {/if}
           </button>
-          <button on:click={openCreateForm} class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md active:scale-95 transition-transform">
+          <button on:click={openCreateForm} class="bg-gradient-to-r from-sky-400 to-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md shadow-sky-200/50 active:scale-95 transition-transform">
             + Tambah
           </button>
         </div>
@@ -542,11 +771,11 @@
 
       <!-- Filter Panel -->
       {#if showFilter}
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="bg-white rounded-2xl shadow-[0_1px_8px_rgba(56,189,248,0.08)] border border-slate-100 p-4 mb-4">
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-[11px] font-semibold text-gray-500 mb-1">Tipe</label>
-              <select bind:value={filterType} class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+              <select bind:value={filterType} class="w-full border border-slate-200 rounded-xl px-2 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-300">
                 <option value="">Semua</option>
                 {#each types as type}
                   <option value={type.code_type}>{type.name || type.code_type}</option>
@@ -555,7 +784,7 @@
             </div>
             <div>
               <label class="block text-[11px] font-semibold text-gray-500 mb-1">Bulan</label>
-              <select bind:value={filterMonth} class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+              <select bind:value={filterMonth} class="w-full border border-slate-200 rounded-xl px-2 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-300">
                 <option value="">Semua</option>
                 {#each monthNames as month, i}
                   <option value={i + 1}>{month}</option>
@@ -564,44 +793,44 @@
             </div>
             <div>
               <label class="block text-[11px] font-semibold text-gray-500 mb-1">Tahun</label>
-              <input type="number" bind:value={filterYear} placeholder="Tahun" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              <input type="number" bind:value={filterYear} placeholder="Tahun" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
             <div>
               <label class="block text-[11px] font-semibold text-gray-500 mb-1">Catatan</label>
-              <input type="text" bind:value={filterNote} placeholder="Cari catatan..." class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              <input type="text" bind:value={filterNote} placeholder="Cari catatan..." class="w-full border border-slate-200 rounded-xl px-2 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
           </div>
           <div class="flex gap-2 mt-3">
-            <button on:click={clearFilters} class="flex-1 py-2 rounded-lg border border-gray-200 text-gray-500 text-xs font-bold active:bg-gray-50">Reset</button>
-            <button on:click={applyFilters} class="flex-1 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-bold active:scale-95 transition-transform shadow-sm">Cari</button>
+            <button on:click={clearFilters} class="flex-1 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold active:bg-slate-50">Reset</button>
+            <button on:click={applyFilters} class="flex-1 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold active:scale-95 transition-transform shadow-sm">Cari</button>
           </div>
         </div>
       {/if}
 
       {#if loading}
         <div class="flex justify-center py-12">
-          <div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+          <div class="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div>
         </div>
       {:else if error}
-        <div class="bg-red-50 text-red-600 p-4 rounded-xl text-sm">{error}</div>
+        <div class="bg-red-50/80 text-red-600 p-4 rounded-2xl text-sm">{error}</div>
       {:else}
         <div class="space-y-2">
           {#each transactions as transaction}
-            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+            <div class="bg-white/80 backdrop-blur-sm rounded-xl p-3 shadow-sm shadow-sky-100/50 border border-blue-100/50">
               <div class="flex justify-between items-start">
 <div class="flex-1 min-w-0">
                     <p class="text-sm font-semibold text-gray-800 truncate">{transaction.note || '-'}</p>
-                    <p class="text-[11px] text-gray-400 mt-0.5">{transaction.code_type || '-'} · {monthNames[(transaction.month || 1) - 1]} {transaction.year}</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">{transaction.code_type || '-'} · {monthNames[(transaction.month || 1) - 1]} {transaction.year}</p>
                     <p class="text-[10px] text-gray-300 mt-0.5">{transaction.created_at ? new Date(transaction.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}{#if transaction.created_by} · oleh {transaction.created_by}{/if}</p>
                   </div>
                 <div class="flex items-center gap-2 ml-2">
                   <p class="text-sm font-bold {String(transaction.code_type || '').startsWith('4') ? 'text-emerald-600' : 'text-red-500'}">
                     {String(transaction.code_type || '').startsWith('4') ? '+' : '-'}{formatMoney(Math.abs(transaction.money || 0))}
                   </p>
-                  <button on:click={() => openEditForm(transaction)} class="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-indigo-600 transition-colors" title="Edit">
+                  <button on:click={() => openEditForm(transaction)} class="p-1 rounded-lg hover:bg-gray-100 text-slate-400 hover:text-indigo-600 transition-colors" title="Edit">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                   </button>
-                  <button on:click={() => handleDelete(transaction.id)} class="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors" title="Hapus">
+                  <button on:click={() => handleDelete(transaction.id)} class="p-1 rounded-lg hover:bg-gray-100 text-slate-400 hover:text-red-500 transition-colors" title="Hapus">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 </div>
@@ -613,9 +842,9 @@
         <!-- Pagination -->
         {#if totalPages > 1}
           <div class="flex justify-center items-center gap-2 mt-4 mb-2">
-            <button on:click={() => { currentPage = currentPage - 1; fetchTransactions(); }} disabled={currentPage <= 1} class="px-3 py-1.5 text-xs rounded-lg bg-white border border-gray-200 disabled:opacity-40 font-bold">Prev</button>
-            <span class="text-xs text-gray-500 font-medium">{currentPage} / {totalPages}</span>
-            <button on:click={() => { currentPage = currentPage + 1; fetchTransactions(); }} disabled={currentPage >= totalPages} class="px-3 py-1.5 text-xs rounded-lg bg-white border border-gray-200 disabled:opacity-40 font-bold">Next</button>
+            <button on:click={() => { currentPage = currentPage - 1; fetchTransactions(); }} disabled={currentPage <= 1} class="px-3 py-1.5 text-xs rounded-xl bg-white/80 border border-blue-100 disabled:opacity-40 font-bold text-sky-700">Prev</button>
+            <span class="text-xs text-sky-700 font-medium">{currentPage} / {totalPages}</span>
+            <button on:click={() => { currentPage = currentPage + 1; fetchTransactions(); }} disabled={currentPage >= totalPages} class="px-3 py-1.5 text-xs rounded-xl bg-white/80 border border-blue-100 disabled:opacity-40 font-bold text-sky-700">Next</button>
           </div>
         {/if}
       {/if}
@@ -624,69 +853,69 @@
   {:else if activeTab === 'pengaturan'}
     <!-- PENGATURAN TAB -->
     <div class="px-4 pt-6">
-      <h1 class="text-xl font-bold text-gray-800 mb-6">Pengaturan</h1>
+      <h1 class="text-xl font-bold text-slate-800 mb-6">Pengaturan</h1>
 
       {#if currentUser}
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="bg-white rounded-2xl shadow-[0_1px_8px_rgba(56,189,248,0.08)] border border-slate-100 p-4 mb-4">
           <div class="flex items-center gap-4">
-            <div class="w-14 h-14 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-lg">
+            <div class="w-14 h-14 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-sky-200/50">
               {currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div>
-              <p class="text-base font-bold text-gray-800">{currentUser.name}</p>
-              <p class="text-sm text-gray-400">@{currentUser.username}</p>
+              <p class="text-base font-bold text-slate-700">{currentUser.name}</p>
+              <p class="text-sm text-slate-400">@{currentUser.username}</p>
             </div>
           </div>
         </div>
       {/if}
 
       <div class="space-y-2">
-        <a href="/" class="flex items-center justify-between bg-white rounded-xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+        <a href="/" class="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm shadow-sky-100/50 border border-blue-100/50 active:bg-sky-50">
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <div class="w-9 h-9 bg-sky-50 rounded-lg flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
               </svg>
             </div>
-            <span class="text-sm font-semibold text-gray-700">Tampilan Desktop</span>
+            <span class="text-sm font-semibold text-slate-700">Tampilan Desktop</span>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
 
-        <a href="/users" class="flex items-center justify-between bg-white rounded-xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+        <a href="/users" class="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm shadow-sky-100/50 border border-blue-100/50 active:bg-sky-50">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
               </svg>
             </div>
-            <span class="text-sm font-semibold text-gray-700">Kelola Pengguna</span>
+            <span class="text-sm font-semibold text-slate-700">Kelola Pengguna</span>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
 
-        <a href="/types" class="flex items-center justify-between bg-white rounded-xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+        <a href="/types" class="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm shadow-sky-100/50 border border-blue-100/50 active:bg-sky-50">
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <div class="w-9 h-9 bg-violet-50 rounded-lg flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
               </svg>
             </div>
-            <span class="text-sm font-semibold text-gray-700">Kelola Tipe Transaksi</span>
+            <span class="text-sm font-semibold text-slate-700">Kelola Tipe Transaksi</span>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
 
-        <a href="/stats" class="flex items-center justify-between bg-white rounded-xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+        <a href="/stats" class="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm shadow-sky-100/50 border border-blue-100/50 active:bg-sky-50">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 bg-amber-50 rounded-lg flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
               </svg>
             </div>
-            <span class="text-sm font-semibold text-gray-700">Statistik Lengkap</span>
+            <span class="text-sm font-semibold text-slate-700">Statistik Lengkap</span>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
       </div>
 
@@ -698,7 +927,7 @@
             localStorage.removeItem('user');
             window.location.href = '/login';
           }}
-          class="w-full bg-red-50 text-red-600 py-3 rounded-xl text-sm font-bold active:bg-red-100 transition-colors"
+          class="w-full bg-red-50/80 text-red-500 py-3 rounded-xl text-sm font-bold active:bg-red-100 transition-colors border border-red-100/50"
         >
           Keluar
         </button>
@@ -710,10 +939,10 @@
 <!-- Transaction Form Modal -->
 {#if showForm}
   <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/50" on:click|self={() => showForm = false}>
-    <div class="bg-white w-full max-w-lg rounded-t-2xl max-h-[90vh] overflow-y-auto" on:click|stopPropagation>
-      <div class="sticky top-0 bg-white z-10 p-5 pb-2 flex justify-between items-center border-b border-gray-100">
-        <h2 class="text-lg font-bold text-gray-800">{editingTransaction ? 'Edit Transaksi' : 'Tambah Transaksi'}</h2>
-        <button on:click={() => showForm = false} class="text-gray-400 hover:text-gray-600 p-1">
+    <div class="bg-white/95 backdrop-blur-xl w-full max-w-lg rounded-t-2xl max-h-[90vh] overflow-y-auto" on:click|stopPropagation>
+      <div class="sticky top-0 bg-white/95 backdrop-blur-xl z-10 p-5 pb-2 flex justify-between items-center border-b border-blue-100/50">
+        <h2 class="text-lg font-bold text-slate-700">{editingTransaction ? 'Edit Transaksi' : 'Tambah Transaksi'}</h2>
+        <button on:click={() => showForm = false} class="text-sky-300 hover:text-sky-500 p-1">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
@@ -722,11 +951,11 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-semibold text-gray-600 mb-1">Tahun</label>
-            <input type="number" bind:value={formData.year} class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:bg-white" />
+            <input type="number" bind:value={formData.year} class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:bg-white" />
           </div>
           <div>
             <label class="block text-sm font-semibold text-gray-600 mb-1">Bulan</label>
-            <select bind:value={formData.month} class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:bg-white">
+            <select bind:value={formData.month} class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:bg-white">
               {#each monthNames as month, i}
                 <option value={i + 1}>{month}</option>
               {/each}
@@ -736,7 +965,7 @@
 
         <div>
           <label class="block text-sm font-semibold text-gray-600 mb-1">Tipe</label>
-          <select bind:value={formData.code_type} class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:bg-white">
+          <select bind:value={formData.code_type} class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:bg-white">
             <option value="">Pilih tipe...</option>
             {#each types as type}
               <option value={type.code_type}>{type.name || type.code_type}</option>
@@ -746,17 +975,17 @@
 
         <div>
           <label class="block text-sm font-semibold text-gray-600 mb-1">Catatan</label>
-          <input type="text" bind:value={formData.note} placeholder="Catatan transaksi" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:bg-white" />
+          <input type="text" bind:value={formData.note} placeholder="Catatan transaksi" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:bg-white" />
         </div>
 
         <div>
           <label class="block text-sm font-semibold text-gray-600 mb-1">Jumlah Uang</label>
-          <input type="text" bind:value={moneyDisplay} on:input={(e) => { moneyDisplay = e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); formData.money = parseInt(e.target.value.replace(/\D/g, '')) || 0; }} placeholder="0" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:bg-white" />
+          <input type="text" bind:value={moneyDisplay} on:input={(e) => { moneyDisplay = e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); formData.money = parseInt(e.target.value.replace(/\D/g, '')) || 0; }} placeholder="0" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:bg-white" />
         </div>
 
         <div class="flex gap-3 pt-2 pb-2">
-          <button type="button" on:click={() => showForm = false} class="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-bold active:bg-gray-50">Batal</button>
-          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-bold active:scale-95 transition-transform shadow-md">
+          <button type="button" on:click={() => showForm = false} class="flex-1 py-2.5 rounded-xl border border-blue-100 text-sky-700 text-sm font-bold active:bg-sky-50">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 text-white text-sm font-bold active:scale-95 transition-transform shadow-md shadow-sky-200/50">
             {editingTransaction ? 'Simpan' : 'Tambah'}
           </button>
         </div>
