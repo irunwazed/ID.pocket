@@ -1,0 +1,46 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+}
+
+const { title = 'ID Flow' } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-linear-to-br from-gray-50 via-indigo-50/30 to-purple-50/30 text-gray-900 font-sans antialiased" style="font-family: 'Plus Jakarta Sans', sans-serif;">
+    <slot />
+
+    <script is:inline define:vars={{ currentPath: Astro.url.pathname }}>
+      const publicPaths = ['/login', '/register', '/api/auth/login'];
+      const isPublicPath = publicPaths.some(path => currentPath.startsWith(path));
+
+      if (!isPublicPath) {
+        function getCookie(name) {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+          return null;
+        }
+
+        const token = getCookie('auth_token');
+        if (!token) {
+          window.location.href = '/login';
+        }
+      }
+    </script>
+  </body>
+</html>
