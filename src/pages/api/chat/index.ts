@@ -1,6 +1,4 @@
 import type { APIRoute } from 'astro';
-import fs from 'node:fs';
-import path from 'node:path';
 import { chatGeminiWithTools, chatOpenAIWithTools, chatClaudeWithTools, chatOpenCodeWithTools } from '../../../lib/chat';
 import type { ToolDefinition } from '../../../lib/chat';
 import { getAuthUser } from '../../../lib/auth';
@@ -16,23 +14,6 @@ interface ChatEntry {
   isError?: boolean;
 }
 
-const historyPath = path.join(process.cwd(), 'data', 'chat-history.json');
-
-function readHistory(): ChatEntry[] {
-  try {
-    if (!fs.existsSync(historyPath)) return [];
-    return JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
-  } catch {
-    return [];
-  }
-}
-
-function writeHistory(entries: ChatEntry[]) {
-  const dir = path.dirname(historyPath);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(historyPath, JSON.stringify(entries, null, 2));
-}
-
 export const GET: APIRoute = async ({ request }) => {
   const authUser = getAuthUser(request);
   if (!authUser) {
@@ -41,11 +22,24 @@ export const GET: APIRoute = async ({ request }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-  return new Response(JSON.stringify(readHistory()), {
+
+  const supabase = createSupabaseServer();
+  const { data, error } = await supabase
+    .from('chat')
+    .select('*')
+    .order('timestamp', { ascending: true });
+
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  return new Response(JSON.stringify(data ?? []), {
     headers: { 'Content-Type': 'application/json' },
   });
 };
-
 
 export const POST: APIRoute = async ({ request }) => {
   const authUser = getAuthUser(request);
@@ -59,7 +53,6 @@ export const POST: APIRoute = async ({ request }) => {
   const body = await request.json();
   const { message, provider = 'gemini', history = [] } = body;
 
-
   if (!message?.trim()) {
     return new Response(JSON.stringify({ error: 'Pesan tidak boleh kosong' }), {
       status: 400,
@@ -67,25 +60,36 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
+  const supabase = createSupabaseServer();
+  const now = new Date();
+
   const userEntry: ChatEntry = {
     id: crypto.randomUUID(),
     role: 'user',
     content: message,
-    timestamp: new Date().toISOString(),
+    timestamp: now.toISOString(),
     provider,
     username: authUser.username,
   };
 
+  // Save user message immediately
+  await supabase.from('chat').insert({
+    id: userEntry.id,
+    role: userEntry.role,
+    content: userEntry.content,
+    timestamp: userEntry.timestamp,
+    provider: userEntry.provider,
+    username: userEntry.username,
+  });
+
   const messages = [...history, { role: 'user' as const, content: message }];
 
   // Fetch available transaction types for AI context
-  const supabase = createSupabaseServer();
   const { data: types } = await supabase.from('type').select('*').order('id');
   const typeList = (types ?? [])
     .map((t: { code_type?: string; name?: string }) => `${t.code_type} (${t.name})`)
     .join(', ');
 
-  const now = new Date();
   const systemPrompt = `Kamu adalah asisten keuangan pribadi yang membantu mencatat dan menganalisis keuangan.
 Jawab dalam bahasa Indonesia secara singkat dan ramah.
 Gunakan tool simpan_transaksi HANYA ketika pengguna secara eksplisit meminta mencatat, inputkan, isikan, atau masukkan transaksi.
@@ -110,10 +114,10 @@ Default bulan: ${now.getMonth() + 1}, tahun: ${now.getFullYear()} jika tidak dis
   };
 
   const result =
-    provider === 'openai'     ? await chatOpenAIWithTools(messages, [tool], systemPrompt) :
-    provider === 'claude'     ? await chatClaudeWithTools(messages, [tool], systemPrompt) :
-    provider === 'opencode'   ? await chatOpenCodeWithTools(messages, [tool], systemPrompt) :
-                                await chatGeminiWithTools(messages, [tool], systemPrompt);
+    provider === 'openai'   ? await chatOpenAIWithTools(messages, [tool], systemPrompt) :
+    provider === 'claude'   ? await chatClaudeWithTools(messages, [tool], systemPrompt) :
+    provider === 'opencode' ? await chatOpenCodeWithTools(messages, [tool], systemPrompt) :
+                              await chatGeminiWithTools(messages, [tool], systemPrompt);
 
   // ── Error from AI ──
   if (result.error) {
@@ -121,11 +125,18 @@ Default bulan: ${now.getMonth() + 1}, tahun: ${now.getFullYear()} jika tidak dis
       id: crypto.randomUUID(),
       role: 'assistant',
       content: result.error,
-      timestamp: now.toISOString(),
+      timestamp: new Date().toISOString(),
       provider,
       isError: true,
     };
-    writeHistory([...readHistory(), userEntry, assistantEntry]);
+    await supabase.from('chat').insert({
+      id: assistantEntry.id,
+      role: assistantEntry.role,
+      content: assistantEntry.content,
+      timestamp: assistantEntry.timestamp,
+      provider: assistantEntry.provider,
+      username: authUser.username,
+    });
     return new Response(
       JSON.stringify({ reply: result.error, userEntry, assistantEntry }),
       { headers: { 'Content-Type': 'application/json' } }
@@ -160,12 +171,20 @@ Default bulan: ${now.getMonth() + 1}, tahun: ${now.getFullYear()} jika tidak dis
       id: crypto.randomUUID(),
       role: 'assistant',
       content: replyText,
-      timestamp: now.toISOString(),
+      timestamp: new Date().toISOString(),
       provider,
       isError: !!txError,
     };
 
-    writeHistory([...readHistory(), userEntry, assistantEntry]);
+    await supabase.from('chat').insert({
+      id: assistantEntry.id,
+      role: assistantEntry.role,
+      content: assistantEntry.content,
+      timestamp: assistantEntry.timestamp,
+      provider: assistantEntry.provider,
+      username: authUser.username,
+    });
+
     return new Response(
       JSON.stringify({ reply: replyText, userEntry, assistantEntry, transaction: txData ?? null }),
       { headers: { 'Content-Type': 'application/json' } }
@@ -177,11 +196,19 @@ Default bulan: ${now.getMonth() + 1}, tahun: ${now.getFullYear()} jika tidak dis
     id: crypto.randomUUID(),
     role: 'assistant',
     content: result.text ?? '',
-    timestamp: now.toISOString(),
+    timestamp: new Date().toISOString(),
     provider,
   };
 
-  writeHistory([...readHistory(), userEntry, assistantEntry]);
+  await supabase.from('chat').insert({
+    id: assistantEntry.id,
+    role: assistantEntry.role,
+    content: assistantEntry.content,
+    timestamp: assistantEntry.timestamp,
+    provider: assistantEntry.provider,
+    username: authUser.username,
+  });
+
   return new Response(
     JSON.stringify({ reply: assistantEntry.content, userEntry, assistantEntry }),
     { headers: { 'Content-Type': 'application/json' } }
@@ -196,7 +223,17 @@ export const DELETE: APIRoute = async ({ request }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-  writeHistory([]);
+
+  const supabase = createSupabaseServer();
+  const { error } = await supabase.from('chat').delete().not('id', 'is', null);
+
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   return new Response(JSON.stringify({ ok: true }), {
     headers: { 'Content-Type': 'application/json' },
   });
